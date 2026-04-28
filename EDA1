@@ -1,0 +1,95 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import folium
+import warnings
+warnings.filterwarnings('ignore')
+
+# ==========================================
+# 1. CARGA DE DATOS
+# ==========================================
+# Leemos el archivo CSV. Asegúrate de que 'test.csv' esté en la misma carpeta que este script.
+archivo_csv = '"C:\Users\juanc\OneDrive\Desktop\test.csv"'
+df = pd.read_csv(archivo_csv)
+
+# ==========================================
+# 2. ANÁLISIS BÁSICO (Estructura y Limpieza)
+# ==========================================
+print("--- Primeros 5 registros ---")
+print(df.head())
+
+print("\n--- Información del Dataset ---")
+print(df.info())
+
+print("\n--- Estadísticas Descriptivas ---")
+print(df.describe())
+
+print("\n--- Valores Nulos por Columna ---")
+print(df.isnull().sum())
+
+# ==========================================
+# 3. VISUALIZACIONES ESTADÍSTICAS (Gráficos)
+# ==========================================
+# Configuramos el estilo de Seaborn
+sns.set_theme(style="whitegrid")
+fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+
+# A. Countplot: Distribución por Tipo de Mascota (Asumiendo 1=Perro, 2=Gato)
+sns.countplot(x='Type', data=df, ax=axes[0, 0], palette='Set2')
+axes[0, 0].set_title('Cantidad de Mascotas por Tipo')
+axes[0, 0].set_xticklabels(['Tipo 1', 'Tipo 2']) # Ajustar según diccionarios de datos
+
+# B. Histograma: Distribución de la Edad
+sns.histplot(df['Age'], bins=30, kde=True, ax=axes[0, 1], color='coral')
+axes[0, 1].set_title('Distribución de la Edad de las Mascotas (Meses)')
+
+# C. Boxplot: Dispersión de la Tarifa de Adopción (Fee)
+sns.boxplot(y=df['Fee'], ax=axes[1, 0], color='lightgreen')
+axes[1, 0].set_title('Dispersión de la Tarifa de Adopción (Fee)')
+
+# D. Heatmap: Matriz de Correlación de variables numéricas clave
+columnas_num = ['Age', 'Fee', 'Quantity', 'PhotoAmt', 'VideoAmt']
+corr = df[columnas_num].corr()
+sns.heatmap(corr, annot=True, cmap='coolwarm', ax=axes[1, 1], vmin=-1, vmax=1)
+axes[1, 1].set_title('Matriz de Correlación')
+
+plt.tight_layout()
+plt.show()
+
+# ==========================================
+# 4. VISUALIZACIÓN GEOESPACIAL (Mapa Interactivo)
+# ==========================================
+print("\nGenerando mapa interactivo...")
+
+# Como no tenemos Latitud y Longitud reales en el CSV, vamos a generar unas 
+# simuladas alrededor de una ubicación central para propósitos de demostración.
+# (Puedes reemplazar esto cuando tengas coordenadas reales)
+np.random.seed(42)
+df['latitud_simulada'] = np.random.uniform(-34.5, -34.8, len(df))
+df['longitud_simulada'] = np.random.uniform(-58.3, -58.7, len(df))
+
+# Centramos el mapa en el promedio de las coordenadas simuladas
+mapa_mascotas = folium.Map(location=[df['latitud_simulada'].mean(), df['longitud_simulada'].mean()], zoom_start=11)
+
+# Agregamos marcadores al mapa (limitamos a 100 para no sobrecargar el archivo HTML)
+for idx, row in df.head(100).iterrows():
+    # Lógica de color: Naranja si tiene tarifa (Fee > 0), Verde si es gratis
+    color_marcador = 'orange' if row['Fee'] > 0 else 'green'
+    nombre = row['Name'] if pd.notna(row['Name']) else "Sin nombre"
+    
+    folium.CircleMarker(
+        location=[row['latitud_simulada'], row['longitud_simulada']],
+        radius=6,
+        popup=f"<b>Nombre:</b> {nombre}<br><b>Edad:</b> {row['Age']} meses<br><b>Fee:</b> ${row['Fee']}",
+        color=color_marcador,
+        fill=True,
+        fill_color=color_marcador,
+        fill_opacity=0.7
+    ).add_to(mapa_mascotas)
+
+# Guardamos el mapa interactivo
+archivo_mapa = "mapa_mascotas.html"
+mapa_mascotas.save(archivo_mapa)
+print(f"¡Mapa interactivo generado y guardado como '{archivo_mapa}'!")
+print("Búscalo en el explorador de archivos de VS Code (a la izquierda) y ábrelo en tu navegador.")
